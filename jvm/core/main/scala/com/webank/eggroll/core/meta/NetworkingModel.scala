@@ -18,20 +18,16 @@
 
 package com.webank.eggroll.core.meta
 
-import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 
 import com.google.protobuf.{Message => PbMessage}
 import com.webank.eggroll.core.constant.StringConstants
 import com.webank.eggroll.core.datastructure.RpcMessage
 import com.webank.eggroll.core.serdes.{BaseSerializable, PbMessageDeserializer, PbMessageSerializer}
-import com.webank.eggroll.core.util.TimeUtils
 import jdk.nashorn.internal.ir.annotations.Immutable
-import org.apache.commons.lang3.StringUtils
 
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
-import scala.collection.immutable.Stream.Empty
 
 trait NetworkingRpcMessage extends RpcMessage {
   override def rpcMessageType(): String = "Networking"
@@ -40,8 +36,6 @@ trait NetworkingRpcMessage extends RpcMessage {
 @Immutable
 case class ErEndpoint(@BeanProperty host: String, @BeanProperty port: Int = -1) extends NetworkingRpcMessage {
   override def toString: String = s"$host:$port"
-
-  def isValid: Boolean = !StringUtils.isBlank(host) && port > 0
 }
 object ErEndpoint {
   def apply(url: String): ErEndpoint = {
