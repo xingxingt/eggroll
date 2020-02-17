@@ -24,6 +24,7 @@ import java.util
 import com.webank.eggroll.core.constant._
 import com.webank.eggroll.core.error.CrudException
 import com.webank.eggroll.core.meta._
+import com.webank.eggroll.core.resourcemanager.SessionMetaDao
 import com.webank.eggroll.core.resourcemanager.ResourceDao
 import com.webank.eggroll.core.util.Logging
 import org.apache.commons.lang3.StringUtils
@@ -61,6 +62,10 @@ class StoreCrudOperator extends CrudOperator with Logging {
 
   def deleteStore(input: ErStore): ErStore = {
     StoreCrudOperator.doDeleteStore(input)
+  }
+
+  def getStoreFromNamespace(input: ErStore): ErStoreList = {
+    StoreCrudOperator.dao.getStoreLocators(input: ErStore)
   }
 }
 
@@ -308,4 +313,5 @@ object StoreCrudOperator {
 
     ErStore(storeLocator = outputStoreLocator)
   }
+  val dao = new SessionMetaDao()
 }
