@@ -32,6 +32,8 @@ import scala.collection.JavaConverters._
 
 trait NetworkingRpcMessage extends RpcMessage {
   override def rpcMessageType(): String = "Networking"
+
+  def isValid: Boolean = !StringUtils.isBlank(host) && port > 0
 }
 
 @Immutable
