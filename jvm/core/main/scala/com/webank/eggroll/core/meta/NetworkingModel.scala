@@ -26,6 +26,7 @@ import com.webank.eggroll.core.constant.StringConstants
 import com.webank.eggroll.core.datastructure.RpcMessage
 import com.webank.eggroll.core.serdes.{BaseSerializable, PbMessageDeserializer, PbMessageSerializer}
 import jdk.nashorn.internal.ir.annotations.Immutable
+import org.apache.commons.lang3.StringUtils
 
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
