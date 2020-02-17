@@ -18,11 +18,9 @@
 
 package com.webank.eggroll.core.resourcemanager.metadata
 
-import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
-import java.{lang, util}
+import java.util
 
-import com.webank.eggroll.core.clustermanager.dao.generated.model._
 import com.webank.eggroll.core.constant._
 import com.webank.eggroll.core.error.CrudException
 import com.webank.eggroll.core.meta._
@@ -68,25 +66,23 @@ class StoreCrudOperator extends CrudOperator with Logging {
 
 object StoreCrudOperator {
   private lazy val dbc = ResourceDao.dbc
-  private val nodeIdToNode = new ConcurrentHashMap[java.lang.Long, (Long, String, Long, String, Int, String, String, Date, Date, Date)]()
+  private val nodeIdToNode = new ConcurrentHashMap[java.lang.Long, ErServerNode]()
   private[metadata] def doGetStore(input: ErStore): ErStore = {
     val inputOptions = input.options
     val sessionId = inputOptions.getOrDefault(SessionConfKeys.CONFKEY_SESSION_ID, StringConstants.UNKNOWN)
 
     // getting input locator
     val inputStoreLocator = input.storeLocator
-    var query_store_locator = "select store_locator_id, store_type, " +
-      "namespace, name, path, total_partitions, partitioner, serdes, version," +
-      " status, created_at, updated_at from store_locator " +
+    var queryStoreLocator = "select * from store_locator " +
       "where namespace = ? and name = ? and status = ?"
     var params = List(inputStoreLocator.namespace, inputStoreLocator.name, StoreStatus.NORMAL)
 
     if (!StringUtils.isBlank(inputStoreLocator.storeType)) {
-      query_store_locator += " and store_type = ?"
+      queryStoreLocator += " and store_type = ?"
       params ++= Array(inputStoreLocator.storeType)
     }
 
-    query_store_locator += " limit 1"
+    queryStoreLocator += " limit 1"
 
     val storeLocatorResult = dbc.query(rs =>
       rs.map(_ => ErStoreLocator(
@@ -98,7 +94,7 @@ object StoreCrudOperator {
         totalPartitions = rs.getInt("total_partitions"),
         partitioner = rs.getString("partitioner"),
         serdes = rs.getString("serdes")
-      )), query_store_locator, params:_*).toList
+      )), queryStoreLocator, params:_*).toList
 
     if (storeLocatorResult.isEmpty) {
       return null
@@ -107,12 +103,12 @@ object StoreCrudOperator {
     val store = storeLocatorResult(0)
     val storeLocatorId = store.id
 
-    val query_store_partition = "select node_id, partition_id from store_partition " +
+    val queryStorePartition = "select node_id, partition_id from store_partition " +
       "where store_locator_id = ? order by store_partition_id asc"
 
     val storePartitionResult = dbc.query(rs => rs.map(_ =>(
       rs.getLong("node_id"),
-      rs.getInt("partition_id"))), query_store_partition, storeLocatorId).toList
+      rs.getInt("partition_id"))), queryStorePartition, storeLocatorId).toList
 
     if (storePartitionResult.isEmpty) {
       throw new IllegalStateException("store locator found but no partition found")
@@ -132,22 +128,21 @@ object StoreCrudOperator {
       missingNodeIdString.indexOf("]"))
 
     if (!missingNodeId.isEmpty) {
-      val query_server_node = "select * from server_node where " +
+      val queryServerNode = "select * from server_node where " +
         "server_node_id in (?) and node_type = ? and status = ?"
 
-      val nodeResult = dbc.query(rs => rs.map(_ => (
-        rs.getLong("server_node_id"),
-        rs.getString("name"),
-        rs.getLong("server_cluster_id"),
-        rs.getString("host"),
-        rs.getInt("port"),
-        rs.getString("node_type"),
-        rs.getString("status"),
-        rs.getDate("last_heartbeat_at"),
-        rs.getDate("created_at"),
-        rs.getDate("updated_at")
+      val nodeResult = dbc.query(rs => rs.map(_ => ErServerNode(
+        id = rs.getLong("server_node_id"),
+        name = rs.getString("name"),
+        clusterId = rs.getLong("server_cluster_id"),
+        endpoint = ErEndpoint(host = rs.getString("host"), port = rs.getInt("port")),
+        nodeType = rs.getString("node_type"),
+        status = rs.getString("status"),
+        lastHeartbeatAt = rs.getDate("last_heartbeat_at"),
+        createdAt = rs.getDate("created_at"),
+        updatedAt = rs.getDate("updated_at")
       )),
-        query_server_node,
+        queryServerNode,
         missingNodeIdTuple,
         ServerNodeTypes.NODE_MANAGER,
         ServerNodeStatus.HEALTHY).toList
@@ -157,7 +152,7 @@ object StoreCrudOperator {
       }
 
       for (i <- 0 until nodeResult.length){
-        val serverNodeId = nodeResult(i)._1
+        val serverNodeId = nodeResult(i).id
         nodeIdToNode.putIfAbsent(serverNodeId, nodeResult(i))
       }
     }
@@ -255,7 +250,7 @@ object StoreCrudOperator {
         id = i,
         storeLocator = inputStoreLocator,
         processor = ErProcessor(id = i,
-          serverNodeId = nodeRecord.get,
+          serverNodeId = if (isPartitionsSpecified) input.partitions(i).processor.serverNodeId else node.id,
           tag = "binding"))
     }
 

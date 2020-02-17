@@ -18,16 +18,20 @@
 
 package com.webank.eggroll.core.meta
 
+import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 
 import com.google.protobuf.{Message => PbMessage}
 import com.webank.eggroll.core.constant.StringConstants
 import com.webank.eggroll.core.datastructure.RpcMessage
 import com.webank.eggroll.core.serdes.{BaseSerializable, PbMessageDeserializer, PbMessageSerializer}
+import com.webank.eggroll.core.util.TimeUtils
 import jdk.nashorn.internal.ir.annotations.Immutable
+import org.apache.commons.lang3.StringUtils
 
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
+import scala.collection.immutable.Stream.Empty
 
 trait NetworkingRpcMessage extends RpcMessage {
   override def rpcMessageType(): String = "Networking"
@@ -36,6 +40,8 @@ trait NetworkingRpcMessage extends RpcMessage {
 @Immutable
 case class ErEndpoint(@BeanProperty host: String, @BeanProperty port: Int = -1) extends NetworkingRpcMessage {
   override def toString: String = s"$host:$port"
+
+  def isValid: Boolean = !StringUtils.isBlank(host) && port > 0
 }
 object ErEndpoint {
   def apply(url: String): ErEndpoint = {
@@ -64,7 +70,10 @@ case class ErServerNode(id: Long = -1,
                         clusterId: Long = 0,
                         endpoint: ErEndpoint = ErEndpoint(host = StringConstants.EMPTY, port = -1),
                         nodeType: String = StringConstants.EMPTY,
-                        status: String = StringConstants.EMPTY) extends NetworkingRpcMessage
+                        status: String = StringConstants.EMPTY,
+                        lastHeartbeatAt: Date = new Date(),
+                        createdAt: Date = new Date(),
+                        updatedAt: Date = new Date()) extends NetworkingRpcMessage
 
 case class ErServerCluster(id: Long = -1,
                            name: String = StringConstants.EMPTY,

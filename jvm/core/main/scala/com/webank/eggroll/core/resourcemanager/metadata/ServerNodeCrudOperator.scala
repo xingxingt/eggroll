@@ -142,7 +142,7 @@ object ServerNodeCrudOperator {
 
   }
 
-  private[metadata] def doGetServerNodesUnwrapped(input: ErServerNode): Array[(Long, String, Long, ErEndpoint, String, String, Date, Date, Date)] = {
+  private[metadata] def doGetServerNodesUnwrapped(input: ErServerNode): Array[ErServerNode] = {
     var sql = "select server_node_id, name, server_cluster_id," +
       " host, port, node_type, status, last_heartbeat_at, created_at, updated_at " +
       "from server_node where 1=? "
@@ -183,16 +183,16 @@ object ServerNodeCrudOperator {
       params ++= Array(input.status)
     }
 
-    val nodeResult = dbc.query( rs => rs.map(_ =>
-      (rs.getLong("server_node_id"),
-      rs.getString("name"),
-      rs.getLong("server_cluster_id"),
-      ErEndpoint(host=rs.getString("host"), port = rs.getInt("port")),
-      rs.getString("node_type"),
-      rs.getString("status"),
-      rs.getDate("last_heartbeat_at"),
-      rs.getDate("created_at"),
-      rs.getDate("updated_at"))), sql, params:_*).toList
+    val nodeResult = dbc.query( rs => rs.map(_ => ErServerNode(
+      id = rs.getLong("server_node_id"),
+      name = rs.getString("name"),
+      clusterId = rs.getLong("server_cluster_id"),
+      endpoint = ErEndpoint(host=rs.getString("host"), port = rs.getInt("port")),
+      nodeType = rs.getString("node_type"),
+      status = rs.getString("status"),
+      lastHeartbeatAt = rs.getDate("last_heartbeat_at"),
+      createdAt = rs.getDate("created_at"),
+      updatedAt = rs.getDate("updated_at"))), sql, params:_*).toList
 
     nodeResult.toArray
   }
@@ -273,9 +273,7 @@ object ServerNodeCrudOperator {
   }
 
   def doGetServerClusterByHosts(input: util.List[String]): ErServerCluster = {
-    val inputString = input.toString
-    val inputTuple = inputString.substring(inputString.indexOf("[") + 1 ,inputString.indexOf("]"))
-
+    val inputTuple = String.join(", ", input)
 
     val sql = "select server_node_id, name, host, port " +
       "from server_node where host in (?) and status = ? and node_type = ? " +
