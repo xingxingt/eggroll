@@ -42,8 +42,7 @@ case class ErPair(key: Array[Byte], value: Array[Byte]) extends MetaRpcMessage
 
 case class ErPairBatch(pairs: Array[ErPair]) extends MetaRpcMessage
 
-case class ErStoreLocator(id: Long = -1,
-                          storeType: String,
+case class ErStoreLocator(storeType: String,
                           namespace: String,
                           name: String,
                           path: String = StringConstants.EMPTY,

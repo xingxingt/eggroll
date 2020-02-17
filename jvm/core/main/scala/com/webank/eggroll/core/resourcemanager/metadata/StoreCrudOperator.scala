@@ -85,15 +85,15 @@ object StoreCrudOperator {
     queryStoreLocator += " limit 1"
 
     val storeLocatorResult = dbc.query(rs =>
-      rs.map(_ => ErStoreLocator(
-        id = rs.getLong("store_locator_id"),
-        storeType = rs.getString("store_type"),
-        namespace = rs.getString("namespace"),
-        name = rs.getString("name"),
-        path = rs.getString("path"),
-        totalPartitions = rs.getInt("total_partitions"),
-        partitioner = rs.getString("partitioner"),
-        serdes = rs.getString("serdes")
+      rs.map(_ => (
+        rs.getLong("store_locator_id"),
+        rs.getString("store_type"),
+        rs.getString("namespace"),
+        rs.getString("name"),
+        rs.getString("path"),
+        rs.getInt("total_partitions"),
+        rs.getString("partitioner"),
+        rs.getString("serdes")
       )), queryStoreLocator, params:_*).toList
 
     if (storeLocatorResult.isEmpty) {
@@ -101,7 +101,7 @@ object StoreCrudOperator {
     }
 
     val store = storeLocatorResult(0)
-    val storeLocatorId = store.id
+    val storeLocatorId = store._1
 
     val queryStorePartition = "select node_id, partition_id from store_partition " +
       "where store_locator_id = ? order by store_partition_id asc"
@@ -158,15 +158,13 @@ object StoreCrudOperator {
     }
 
     val outputStoreLocator = ErStoreLocator(
-      id = store.id,
-      storeType = store.storeType,
-      namespace = store.namespace,
-      name = store.name,
-      path = store.path,
-      totalPartitions = store.totalPartitions,
-      partitioner = store.partitioner,
-      serdes = store.serdes
-    )
+      storeType = store._2,
+      namespace = store._3,
+      name = store._4,
+      path = store._5,
+      totalPartitions = store._6,
+      partitioner = store._7,
+      serdes = store._8)
 
     val outputOptions = new ConcurrentHashMap[String, String]()
     if (inputOptions != null) {
