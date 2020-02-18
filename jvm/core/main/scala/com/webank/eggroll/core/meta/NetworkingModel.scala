@@ -33,13 +33,13 @@ import scala.collection.JavaConverters._
 
 trait NetworkingRpcMessage extends RpcMessage {
   override def rpcMessageType(): String = "Networking"
-
-  def isValid: Boolean = !StringUtils.isBlank(host) && port > 0
 }
 
 @Immutable
 case class ErEndpoint(@BeanProperty host: String, @BeanProperty port: Int = -1) extends NetworkingRpcMessage {
   override def toString: String = s"$host:$port"
+
+  def isValid: Boolean = !StringUtils.isBlank(host) && port > 0
 }
 object ErEndpoint {
   def apply(url: String): ErEndpoint = {
