@@ -29,6 +29,7 @@ import com.webank.eggroll.core.resourcemanager.ResourceDao
 import com.webank.eggroll.core.util.Logging
 import org.apache.commons.lang3.StringUtils
 import com.webank.eggroll.core.util.JdbcTemplate.ResultSetIterator
+import jvm.core.main.scala.com.webank.eggroll.core.resourcemanager.metadata.{DbStoreLocator, DbStorePartition}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -108,7 +109,7 @@ object StoreCrudOperator {
     val store = storeLocatorResult(0)
     val storeLocatorId = store.id
 
-    val queryStorePartition = "select node_id, partition_id from store_partition " +
+    val queryStorePartition = "select * from store_partition " +
       "where store_locator_id = ? order by store_partition_id asc"
 
     val storePartitionResult = dbc.query(rs => rs.map(_ => DbStorePartition(
@@ -274,7 +275,7 @@ object StoreCrudOperator {
       "where store_type = ? and namespace = ? and name = ? and status = ? limit 1"
 
     val nodeResult = dbc.query(rs => rs.map(_ => DbStoreLocator(
-      id = rs.getString("store_locator_id"),
+      id = rs.getLong("store_locator_id"),
       name = rs.getString("name"))), sql,
       inputStoreLocator.storeType, inputStoreLocator.namespace,
       inputStoreLocator.name, StoreStatus.NORMAL).toList

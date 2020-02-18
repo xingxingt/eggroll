@@ -76,8 +76,7 @@ class ServerNodeCrudOperator extends CrudOperator with Logging {
 object ServerNodeCrudOperator {
   private lazy val dbc = ResourceDao.dbc
   private[metadata] def doGetServerCluster(input: ErServerCluster): ErServerCluster = {
-    val sql = "select server_node_id, name, " +
-      " host, port from server_node where server_cluster_id = ?"
+    val sql = "select * from server_node where server_cluster_id = ?"
     val nodeResult = dbc.query(rs =>
       rs.map(_ => ErServerNode(id = rs.getInt("server_node_id"), name = rs.getString("name"),
         endpoint = ErEndpoint(host=rs.getString("host"), port = rs.getInt("port")))
@@ -110,7 +109,7 @@ object ServerNodeCrudOperator {
   }
 
   private[metadata] def existSession(sessionId: Long): Boolean = {
-    dbc.queryOne("select 1 from session_main where session_id = ?", sessionId).nonEmpty
+    dbc.queryOne("select * from session_main where session_id = ?", sessionId).nonEmpty
   }
 
   def doUpdateServerNode(input: ErServerNode, isHeartbeat: Boolean = false): ErServerNode = {
@@ -143,9 +142,7 @@ object ServerNodeCrudOperator {
   }
 
   private[metadata] def doGetServerNodesUnwrapped(input: ErServerNode): Array[ErServerNode] = {
-    var sql = "select server_node_id, name, server_cluster_id," +
-      " host, port, node_type, status, last_heartbeat_at, created_at, updated_at " +
-      "from server_node where 1=? "
+    var sql = "select * from server_node where 1=? "
     var params = ListBuffer("1")
 
     if (input.id > 0) {
@@ -198,9 +195,7 @@ object ServerNodeCrudOperator {
   }
 
   private[metadata] def doGetServerNodes(input: ErServerNode): Array[ErServerNode] = {
-    var sql = "select server_node_id, name, server_cluster_id," +
-      " host, port, node_type, status, last_heartbeat_at, created_at, updated_at " +
-      "from server_node where 1=? "
+    var sql = "select * from server_node where 1=? "
     var params = List("1")
 
     if (input.id > 0) {
@@ -275,8 +270,7 @@ object ServerNodeCrudOperator {
   def doGetServerClusterByHosts(input: util.List[String]): ErServerCluster = {
     val inputTuple = String.join(", ", input)
 
-    val sql = "select server_node_id, name, host, port " +
-      "from server_node where host in (?) and status = ? and node_type = ? " +
+    val sql = "select * from server_node where host in (?) and status = ? and node_type = ? " +
       "order by server_node_id asc"
 
     val nodeResult = dbc.query(rs => rs.map(_ =>

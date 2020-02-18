@@ -18,6 +18,7 @@
 
 package com.webank.eggroll.core.meta
 
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 import com.google.protobuf.{ByteString, Message => PbMessage}
@@ -42,22 +43,8 @@ case class ErPair(key: Array[Byte], value: Array[Byte]) extends MetaRpcMessage
 
 case class ErPairBatch(pairs: Array[ErPair]) extends MetaRpcMessage
 
-case class DbStoreLocator(id: Long = -1,
+case class ErStoreLocator(id: Long = -1L,
                           storeType: String,
-                          namespace: String,
-                          name: String,
-                          path: String = StringConstants.EMPTY,
-                          totalPartitions: Int = 0,
-                          partitioner: String = StringConstants.EMPTY,
-                          serdes: String = StringConstants.EMPTY)
-
-case class DbStorePartition(storePartitionId: Long = -1,
-                            storeLocatorId: Long = -1,
-                            nodeId: Long = -1,
-                            partitionId: Int = 0,
-                            status: String)
-
-case class ErStoreLocator(storeType: String,
                           namespace: String,
                           name: String,
                           path: String = StringConstants.EMPTY,
@@ -71,11 +58,11 @@ case class ErStoreLocator(storeType: String,
       String.join(delim, storeType, namespace, name)
     }
   }
-
+  // TODO:0: replace uuid with simpler human friendly solution
   def fork(postfix: String = StringConstants.EMPTY, delimiter: String = StringConstants.UNDERLINE): ErStoreLocator = {
-    val delimiterPos = StringUtils.lastIndexOf(this.name, delimiter)
+    val delimiterPos = StringUtils.lastOrdinalIndexOf(this.name, delimiter, 2)
 
-    val newPostfix = if (StringUtils.isBlank(postfix)) TimeUtils.getNowMs() else postfix
+    val newPostfix = if (StringUtils.isBlank(postfix)) String.join(delimiter, TimeUtils.getNowMs(), UUID.randomUUID().toString) else postfix
     val newName =
       if (delimiterPos > 0) s"${StringUtils.substring(this.name, 0, delimiterPos)}${delimiter}${newPostfix}"
       else s"${name}${delimiter}${newPostfix}"
@@ -105,6 +92,10 @@ case class ErStore(storeLocator: ErStoreLocator,
   }
 }
 
+case class ErStoreList(stores: Array[ErStore] = Array.empty,
+                   options: java.util.Map[String, String] = new ConcurrentHashMap[String, String]())
+  extends MetaRpcMessage
+
 case class ErJob(id: String,
                  name: String = StringConstants.EMPTY,
                  inputs: Array[ErStore],
@@ -132,7 +123,7 @@ case class ErTask(id: String,
   }
 }
 
-case class ErSessionMeta(id: String,
+case class ErSessionMeta(id: String = StringConstants.EMPTY,
                          name: String = StringConstants.EMPTY,
                          status: String = StringConstants.EMPTY,
                          activeProcCount: Int = 0,
@@ -212,6 +203,17 @@ object MetaModelPbMessageSerdes {
 
     override def toBytes(baseSerializable: BaseSerializable): Array[Byte] =
       baseSerializable.asInstanceOf[ErStore].toBytes()
+  }
+
+  implicit class ErStoreListToPbMessage(src: ErStoreList) extends PbMessageSerializer {
+    override def toProto[T >: PbMessage](): Meta.StoreList = {
+      val builder = Meta.StoreList.newBuilder()
+          .addAllStores(src.stores.toList.map(_.toProto()).asJava)
+      builder.build()
+    }
+
+    override def toBytes(baseSerializable: BaseSerializable): Array[Byte] =
+      baseSerializable.asInstanceOf[ErStoreList].toBytes()
   }
 
   implicit class ErPartitionToPbMessage(src: ErPartition) extends PbMessageSerializer {
@@ -321,6 +323,7 @@ object MetaModelPbMessageSerdes {
       Meta.StoreLocator.parseFrom(bytes).fromProto()
   }
 
+
   implicit class ErStoreFromPbMessage(src: Meta.Store) extends PbMessageDeserializer {
     override def fromProto[T >: RpcMessage](): ErStore = {
       ErStore(
@@ -331,6 +334,15 @@ object MetaModelPbMessageSerdes {
 
     override def fromBytes(bytes: Array[Byte]): ErStore =
       Meta.Store.parseFrom(bytes).fromProto()
+  }
+
+  implicit class ErStoreListFromPbMessage(src: Meta.StoreList) extends PbMessageDeserializer {
+    override def fromProto[T >: RpcMessage](): ErStoreList = {
+      ErStoreList(stores = src.getStoresList.asScala.map(_.fromProto()).toArray)
+    }
+
+    override def fromBytes(bytes: Array[Byte]): ErStoreList =
+      Meta.StoreList.parseFrom(bytes).fromProto()
   }
 
   implicit class ErPartitionFromPbMessage(src: Meta.Partition) extends PbMessageDeserializer {
@@ -384,3 +396,4 @@ object MetaModelPbMessageSerdes {
     }
   }
 }
+
