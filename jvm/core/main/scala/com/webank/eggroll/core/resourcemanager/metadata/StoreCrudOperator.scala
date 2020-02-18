@@ -90,15 +90,15 @@ object StoreCrudOperator {
     queryStoreLocator += " limit 1"
 
     val storeLocatorResult = dbc.query(rs =>
-      rs.map(_ => (
-        rs.getLong("store_locator_id"),
-        rs.getString("store_type"),
-        rs.getString("namespace"),
-        rs.getString("name"),
-        rs.getString("path"),
-        rs.getInt("total_partitions"),
-        rs.getString("partitioner"),
-        rs.getString("serdes")
+      rs.map(_ => DbStoreLocator(
+        id = rs.getLong("store_locator_id"),
+        storeType = rs.getString("store_type"),
+        namespace = rs.getString("namespace"),
+        name = rs.getString("name"),
+        path = rs.getString("path"),
+        totalPartitions = rs.getInt("total_partitions"),
+        partitioner = rs.getString("partitioner"),
+        serdes = rs.getString("serdes")
       )), queryStoreLocator, params:_*).toList
 
     if (storeLocatorResult.isEmpty) {
@@ -106,14 +106,14 @@ object StoreCrudOperator {
     }
 
     val store = storeLocatorResult(0)
-    val storeLocatorId = store._1
+    val storeLocatorId = store.id
 
     val queryStorePartition = "select node_id, partition_id from store_partition " +
       "where store_locator_id = ? order by store_partition_id asc"
 
-    val storePartitionResult = dbc.query(rs => rs.map(_ =>(
-      rs.getLong("node_id"),
-      rs.getInt("partition_id"))), queryStorePartition, storeLocatorId).toList
+    val storePartitionResult = dbc.query(rs => rs.map(_ => DbStorePartition(
+      nodeId = rs.getLong("node_id"),
+      partitionId = rs.getInt("partition_id"))), queryStorePartition, storeLocatorId).toList
 
     if (storePartitionResult.isEmpty) {
       throw new IllegalStateException("store locator found but no partition found")
@@ -123,7 +123,7 @@ object StoreCrudOperator {
     val partitionAtNodeIds = ArrayBuffer[Long]()
 
     for (i <- 0 until storePartitionResult.length){
-      val nodeId = storePartitionResult(i)._1
+      val nodeId = storePartitionResult(i).nodeId
       if (!nodeIdToNode.containsKey(nodeId)) missingNodeId.add(nodeId)
       partitionAtNodeIds += nodeId
     }
@@ -163,13 +163,13 @@ object StoreCrudOperator {
     }
 
     val outputStoreLocator = ErStoreLocator(
-      storeType = store._2,
-      namespace = store._3,
-      name = store._4,
-      path = store._5,
-      totalPartitions = store._6,
-      partitioner = store._7,
-      serdes = store._8)
+      storeType = store.storeType,
+      namespace = store.namespace,
+      name = store.name,
+      path = store.path,
+      totalPartitions = store.totalPartitions,
+      partitioner = store.partitioner,
+      serdes = store.serdes)
 
     val outputOptions = new ConcurrentHashMap[String, String]()
     if (inputOptions != null) {
@@ -178,9 +178,9 @@ object StoreCrudOperator {
 
     // process output partitions
     val outputPartitions = storePartitionResult.map(p => ErPartition(
-        id = p._2,
+        id = p.partitionId,
         storeLocator = outputStoreLocator,
-        processor = ErProcessor(id = p._2.toLong, serverNodeId = p._1)))
+        processor = ErProcessor(id = p.partitionId.toLong, serverNodeId = p.nodeId)))
 
     ErStore(storeLocator = outputStoreLocator, partitions = outputPartitions.toArray, options = outputOptions)
   }
@@ -273,9 +273,9 @@ object StoreCrudOperator {
     val sql = "select * from store_locator " +
       "where store_type = ? and namespace = ? and name = ? and status = ? limit 1"
 
-    val nodeResult = dbc.query(rs => rs.map(_ =>(
-      rs.getString("store_locator_id"),
-      rs.getString("name"))), sql,
+    val nodeResult = dbc.query(rs => rs.map(_ => DbStoreLocator(
+      id = rs.getString("store_locator_id"),
+      name = rs.getString("name"))), sql,
       inputStoreLocator.storeType, inputStoreLocator.namespace,
       inputStoreLocator.name, StoreStatus.NORMAL).toList
 
@@ -290,14 +290,14 @@ object StoreCrudOperator {
       val sql = "update store_locator " +
         "set name = ?, status = ? where store_locator_id = ?"
 
-      dbc.update(conn, sql, now, StoreStatus.DELETED, nodeRecord._1)
+      dbc.update(conn, sql, now, StoreStatus.DELETED, nodeRecord.id)
     })
 
     if (storeLocatorRecord.isEmpty) {
       throw new CrudException(s"Illegal rows affected returned when deleting store: ${storeLocatorRecord}")
     }
 
-    val outputStoreLocator = inputStoreLocator.copy(name = nodeRecord._2)
+    val outputStoreLocator = inputStoreLocator.copy(name = nodeRecord.name)
 
     ErStore(storeLocator = outputStoreLocator)
   }
