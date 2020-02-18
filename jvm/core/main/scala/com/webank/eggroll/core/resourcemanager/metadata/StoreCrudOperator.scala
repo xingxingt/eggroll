@@ -29,7 +29,7 @@ import com.webank.eggroll.core.resourcemanager.ResourceDao
 import com.webank.eggroll.core.util.Logging
 import org.apache.commons.lang3.StringUtils
 import com.webank.eggroll.core.util.JdbcTemplate.ResultSetIterator
-import jvm.core.main.scala.com.webank.eggroll.core.resourcemanager.metadata.{DbStoreLocator, DbStorePartition}
+import com.webank.eggroll.core.resourcemanager.metadata._
 
 import scala.collection.mutable.ArrayBuffer
 
