@@ -270,22 +270,12 @@ object StoreCrudOperator {
   private[metadata] def doDeleteStore(input: ErStore): ErStore = {
     val inputStoreLocator = input.storeLocator
 
-    val sql = "select store_type, namespace, name, path, total_partitions, " +
-      "partitioner, serdes, version, status, created_at, updated_at from store_locator " +
+    val sql = "select * from store_locator " +
       "where store_type = ? and namespace = ? and name = ? and status = ? limit 1"
 
     val nodeResult = dbc.query(rs => rs.map(_ =>(
-      rs.getString("store_type"),
-      rs.getString("namespace"),
-      rs.getString("name"),
-      rs.getString("path"),
-      rs.getString("total_partitions"),
-      rs.getString("partitioner"),
-      rs.getString("serdes"),
-      rs.getString("version"),
-      rs.getString("status"),
-      rs.getTime("created_at"),
-      rs.getTime("updated_at"))), sql,
+      rs.getString("store_locator_id"),
+      rs.getString("name"))), sql,
       inputStoreLocator.storeType, inputStoreLocator.namespace,
       inputStoreLocator.name, StoreStatus.NORMAL).toList
 
@@ -298,18 +288,16 @@ object StoreCrudOperator {
 
     val storeLocatorRecord = dbc.withTransaction(conn => {
       val sql = "update store_locator " +
-        "set store_type = ?, namespace = ?, name = ?, path = ?, total_partitions = ?, " +
-        "partitioner = ?, serdes = ?, version = ?, status = ?, created_at = ?, updated_at = ?"
+        "set name = ?, status = ? where store_locator_id = ?"
 
-      dbc.update(conn, sql, nodeRecord._1, nodeRecord._2, now, nodeRecord._4, nodeRecord._5,
-        nodeRecord._6, nodeRecord._7, nodeRecord._8, nodeRecord._9, nodeRecord._10, nodeRecord._11)
+      dbc.update(conn, sql, now, StoreStatus.DELETED, nodeRecord._1)
     })
 
     if (storeLocatorRecord.isEmpty) {
       throw new CrudException(s"Illegal rows affected returned when deleting store: ${storeLocatorRecord}")
     }
 
-    val outputStoreLocator = inputStoreLocator.copy(name = nodeRecord._3)
+    val outputStoreLocator = inputStoreLocator.copy(name = nodeRecord._2)
 
     ErStore(storeLocator = outputStoreLocator)
   }
